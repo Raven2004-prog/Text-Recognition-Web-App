@@ -10,16 +10,18 @@ export default function Home() {
   const [index, setIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
   const [image, setImage] = useState(null);
+  const [file, setFile] = useState(null);
+  const [extractedText, setExtractedText] = useState("");
 
   useEffect(() => {
-    const speed = isDeleting ? 50 : 100; // Typing vs Deleting speed
+    const speed = isDeleting ? 50 : 100;
 
     if (!isDeleting && index === fullText.length) {
-      setTimeout(() => setIsDeleting(true), 1000); // Pause before deleting
+      setTimeout(() => setIsDeleting(true), 1000);
     }
 
     if (isDeleting && index === 0) {
-      setTimeout(() => setIsDeleting(false), 500); // Pause before retyping
+      setTimeout(() => setIsDeleting(false), 500);
     }
 
     const timeout = setTimeout(() => {
@@ -31,9 +33,31 @@ export default function Home() {
   }, [index, isDeleting]);
 
   const handleImageUpload = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setImage(URL.createObjectURL(file));
+    const uploadedFile = event.target.files[0];
+    if (uploadedFile) {
+      setImage(URL.createObjectURL(uploadedFile));
+      setFile(uploadedFile);
+      setExtractedText(""); // Reset extracted text on new upload
+    }
+  };
+
+  const handleProcessText = async () => {
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("image", file);
+
+    try {
+      const response = await fetch("http://localhost:5000/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await response.json();
+      setExtractedText(data.text || "No text extracted");
+    } catch (error) {
+      console.error("Error processing text:", error);
+      setExtractedText("Error processing image.");
     }
   };
 
@@ -73,11 +97,22 @@ export default function Home() {
 
       {/* Process Button */}
       {image && (
-        <button className="mt-6 bg-black text-white px-6 py-3 flex items-center gap-2 rounded-full hover:bg-gray-800 transition shadow-lg">
+        <button
+          onClick={handleProcessText}
+          className="mt-6 bg-black text-white px-6 py-3 flex items-center gap-2 rounded-full hover:bg-gray-800 transition shadow-lg"
+        >
           <FileText size={20} />
           <span>Process Text</span>
           <ArrowRight size={20} />
         </button>
+      )}
+
+      {/* Extracted Text Display */}
+      {extractedText && (
+        <div className="mt-6 bg-gray-100 p-4 rounded-lg shadow-md max-w-xl text-center">
+          <h2 className="font-bold text-lg text-black">Extracted Text:</h2>
+          <p className="text-gray-800 font-serif mt-2">{extractedText}</p>
+        </div>
       )}
     </div>
   );
