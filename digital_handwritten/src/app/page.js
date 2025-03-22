@@ -12,7 +12,10 @@ export default function Home() {
   const [image, setImage] = useState(null);
   const [file, setFile] = useState(null);
   const [extractedText, setExtractedText] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState("");
 
+  // Typewriter effect
   useEffect(() => {
     const speed = isDeleting ? 50 : 100;
 
@@ -32,32 +35,51 @@ export default function Home() {
     return () => clearTimeout(timeout);
   }, [index, isDeleting]);
 
+  // Handle image upload
   const handleImageUpload = (event) => {
     const uploadedFile = event.target.files[0];
-    if (uploadedFile) {
+    if (uploadedFile && uploadedFile.type.startsWith("image/")) {
       setImage(URL.createObjectURL(uploadedFile));
       setFile(uploadedFile);
-      setExtractedText(""); // Reset extracted text on new upload
+      setExtractedText("");
+      setError("");
+    } else {
+      setError("Please upload a valid image file.");
     }
   };
 
+  // Process text extraction
   const handleProcessText = async () => {
-    if (!file) return;
+    if (!file) {
+      setError("Please upload an image first.");
+      return;
+    }
+
+    setIsProcessing(true);
+    setError("");
 
     const formData = new FormData();
     formData.append("image", file);
 
     try {
+      console.log("Uploading image...");
       const response = await fetch("http://localhost:5000/upload", {
         method: "POST",
         body: formData,
       });
 
+      if (!response.ok) {
+        throw new Error("Failed to process image.");
+      }
+
       const data = await response.json();
+      console.log("Response data:", data);
       setExtractedText(data.text || "No text extracted");
     } catch (error) {
       console.error("Error processing text:", error);
-      setExtractedText("Error processing image.");
+      setError("Error processing image. Please try again.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -87,6 +109,9 @@ export default function Home() {
         </label>
       </div>
 
+      {/* Error Message */}
+      {error && <p className="text-red-500 mt-4 text-center">{error}</p>}
+
       {/* Image Preview */}
       {image && (
         <div className="mt-6">
@@ -99,10 +124,11 @@ export default function Home() {
       {image && (
         <button
           onClick={handleProcessText}
-          className="mt-6 bg-black text-white px-6 py-3 flex items-center gap-2 rounded-full hover:bg-gray-800 transition shadow-lg"
+          disabled={isProcessing}
+          className="mt-6 bg-black text-white px-6 py-3 flex items-center gap-2 rounded-full hover:bg-gray-800 transition shadow-lg disabled:opacity-50"
         >
           <FileText size={20} />
-          <span>Process Text</span>
+          <span>{isProcessing ? "Processing..." : "Process Text"}</span>
           <ArrowRight size={20} />
         </button>
       )}
